@@ -9,12 +9,20 @@ pub struct Params {
 // 解析参数
 impl Params {
     // 参数构建
-    pub fn build(args: &[String]) -> Result<Params, &'static str> {
-        if args.len() < 3 {
-            return Err("参数不足");
-        }
-        let query = args[1].clone();
-        let file_path = args[2].clone();
+    pub fn build(mut args: impl Iterator<Item = String>) -> Result<Params, &'static str> {
+        // 跳过第一个参数
+        args.next();
+
+        let query = match args.next() {
+            Some(arg) => arg,
+            None => return Err("缺少查询参数"),
+        };
+
+        let file_path = match args.next() {
+            Some(arg) => arg,
+            None => return Err("缺少文件路径参数"),
+        };
+
         let ignore_case = env::var("IGNORE_CASE").is_ok();
         Ok(Params {
             query,
@@ -38,13 +46,10 @@ pub fn run(params: Params) -> Result<(), Box<dyn Error>> {
 }
 // 搜索
 pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
-    let mut results = Vec::new();
-    for line in contents.lines() {
-        if line.contains(&query) {
-            results.push(line);
-        }
-    }
-    results
+    contents
+        .lines()
+        .filter(|line| line.contains(query))
+        .collect()
 }
 // 搜索（忽略大小写）
 pub fn search_case_insensitive<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
@@ -80,6 +85,9 @@ Rust:
 safe, fast, productive.
 Pick three.
 Trust me.";
-        assert_eq!(vec!["Rust:", "Trust me."], search(query, contents));
+        assert_eq!(
+            vec!["Rust:", "Trust me."],
+            search_case_insensitive(query, contents)
+        );
     }
 }
